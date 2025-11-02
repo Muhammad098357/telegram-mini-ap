@@ -1,0 +1,17 @@
+{
+    "name": "Wordle Game",
+    "short_name": "Wordle",
+    "description": "Угадай слово из 5 букв - классическая игра Wordle",
+    "start_url": "/index.html",
+    "display": "standalone",
+    "theme_color": "#1a1a2e",
+    "background_color": "#16213e",
+    "icons": [
+        {
+            "src": "icon.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        }
+    ],
+    "categories": ["game", "entertainment"]
+}

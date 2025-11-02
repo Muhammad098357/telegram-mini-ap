@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordle | Telegram</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+            color: #4cc9f0;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 15px 0;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #4cc9f0;
+        }
+
+        .game-board {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+            max-width: 350px;
+            margin: 0 auto 20px;
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #4cc9f0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .cell.filled {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        .cell.correct {
+            background: #4cc9f0;
+            border-color: #4cc9f0;
+            color: white;
+        }
+
+        .cell.present {
+            background: #f72585;
+            border-color: #f72585;
+            color: white;
+        }
+
+        .cell.absent {
+            background: #7209b7;
+            border-color: #7209b7;
+            color: white;
+        }
+
+        .keyboard {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+            max-width: 350px;
+            margin: 0 auto;
+        }
+
+        .keyboard-row {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+        }
+
+        .key {
+            flex: 1;
+            height: 50px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .key:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .key.wide {
+            flex: 2;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .message {
+            text-align: center;
+            padding: 15px;
+            margin: 15px 0;
+            background: rgba(247, 37, 133, 0.2);
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 400px) {
+            .cell {
+                width: 45px;
+                height: 45px;
+                font-size: 1.3em;
+            }
+            
+            .key {
+                height: 45px;
+                font-size: 1em;
+            }
+        }
+
+        @media (max-width: 350px) {
+            .cell {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2em;
+            }
+            
+            .key {
+                height: 40px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 WORDLE</h1>
+            <p>Угадай слово из 5 букв!</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div>Попытка</div>
+                <div class="stat-value" id="current-attempt">1/6</div>
+            </div>
+            <div class="stat-item">
+                <div>Слово</div>
+                <div class="stat-value" id="word-length">5 букв</div>
+            </div>
+        </div>
+
+        <div class="game-board" id="game-board">
+            <!-- Игровое поле генерируется JavaScript -->
+        </div>
+
+        <div class="message" id="game-message">
+            Введите слово из 5 букв
+        </div>
+
+        <div class="keyboard" id="keyboard">
+            <!-- Клавиатура генерируется JavaScript -->
+        </div>
+
+        <div class="controls">
+            <button class="btn" onclick="newGame()">🔄 Новая игра</button>
+            <button class="btn" onclick="shareResult()">📤 Поделиться</button>
+        </div>
+    </div>
+
+    <script>
+        // Основной объект Telegram WebApp
+        const tg = window.Telegram.WebApp;
+
+        // Игровые переменные
+        let currentGame = {
+            word: '',
+            attempts: 0,
+            maxAttempts: 6,
+            currentGuess: '',
+            gameOver: false,
+            guessed: false
+        };
+
+        // База русских слов из 5 букв
+        const WORDS = [
+            "АБРИС", "АВГИЙ", "АЗАРТ", "АКЦИЯ", "АЛМАЗ", "АМЕБА", "АНОНС", "АРБУЗ", "АКТЕР", "АЛЛЕЯ",
+            "БАНКА", "БАРИН", "БЕГУН", "БЕДРО", "БЕЛКА", "БЕЛОК", "БЕРЦО", "БИЗОН", "БЛОХА", "БУКЕТ",
+            "ВАЛЕТ", "ВЕСЛО", "ВЕТЕР", "ВИДЕО", "ВИЛКА", "ВИРУС", "ВКУСЕ", "ВОДКА", "ВОЛНА", "ВЫЗОВ",
+            "ГАЗОН", "ГАММА", "ГАУСС", "ГЕНРИ", "ГЛИНА", "ГНЕВО", "ГОЛОД", "ГРАФА", "ГРОЗА", "ГРУША",
+            "ДЕСНА", "ДЖИНН", "ДИЕТА", "ДОЗОР", "ДОЧКА", "ДРАМА", "ДУПЛО", "ДЫРКА", "ДОМБИ", "ДЕНДИ",
+            "ЕВРЕЙ", "ЕЗДОК", "ЕСАУЛ", "ЕНОТ", "ЕЛЬ", "ЕЖ", "ЕДКИЙ", "ЕЗДА", "ЕВНУХ", "ЕРАЛАШ",
+            "ЖАКЕТ", "ЖАТВА", "ЖИВОТ", "ЖИЛЬЕ", "ЖИРАФ", "ЖУЧОК", "ЖНЕЦ", "ЖРЕЦ", "ЖМЫХ", "ЖГУТ",
+            "ЗАБОР", "ЗАКАЗ", "ЗАПАХ", "ЗВЕНО", "ЗЕБРА", "ЗЕМЛЯ", "ЗЕРНО", "ЗМЕЯ", "ЗУБР", "ЗАЛИВ",
+            "ИВРИТ", "ИГРОК", "ИДЕАЛ", "ИКОТА", "ИНДИЙ", "ИСКРА", "ИСПУГ", "ИХТИО", "ИКОНА", "ИШИАС",
+            "КАЗАН", "КАЛИЙ", "КАПЛЯ", "КАСКА", "КЕТЧУ", "КИСТЬ", "КЛЕРК", "КНИГА", "КОЖА", "КРАН"
+        ];
+
+        // Инициализация игры
+        function initGame() {
+            console.log('Initializing Wordle game...');
+            
+            // Инициализируем Telegram WebApp
+            tg.expand();
+            tg.ready();
+
+            // Создаем игровое поле
+            createGameBoard();
+            
+            // Создаем клавиатуру
+            createKeyboard();
+            
+            // Начинаем новую игру
+            newGame();
+            
+            console.log('Game initialized successfully');
+        }
+
+        // Создание игрового поля
+        function createGameBoard() {
+            const gameBoard = document.getElementById('game-board');
+            gameBoard.innerHTML = '';
+
+            for (let row = 0; row < currentGame.maxAttempts; row++) {
+                const rowElement = document.createElement('div');
+                rowElement.className = 'row';
+                
+                for (let col = 0; col < 5; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${row}-${col}`;
+                    rowElement.appendChild(cell);
+                }
+                
+                gameBoard.appendChild(rowElement);
+            }
+        }
+
+        // Создание клавиатуры
+        function createKeyboard() {
+            const keyboard = document.getElementById('keyboard');
+            keyboard.innerHTML = '';
+
+            const keyboardLayout = [
+                ['Й', 'Ц', 'У', 'К', 'Е', 'Н', 'Г', 'Ш', 'Щ', 'З', 'Х', 'Ъ'],
+                ['Ф', 'Ы', 'В', 'А', 'П', 'Р', 'О', 'Л', 'Д', 'Ж', 'Э'],
+                ['ENTER', 'Я', 'Ч', 'С', 'М', 'И', 'Т', 'Ь', 'Б', 'Ю', 'BACKSPACE']
+            ];
+
+            keyboardLayout.forEach(row => {
+                const rowElement = document.createElement('div');
+                rowElement.className = 'keyboard-row';
+                
+                row.forEach(key => {
+                    const keyElement = document.createElement('button');
+                    keyElement.className = 'key';
+                    keyElement.textContent = key;
+                    
+                    if (key === 'ENTER' || key === 'BACKSPACE') {
+                        keyElement.classList.add('wide');
+                    }
+                    
+                    keyElement.onclick = () => handleKeyPress(key);
+                    rowElement.appendChild(keyElement);
+                });
+                
+                keyboard.appendChild(rowElement);
+            });
+        }
+
+        // Обработка нажатия клавиш
+        function handleKeyPress(key) {
+            if (currentGame.gameOver) return;
+
+            if (key === 'BACKSPACE') {
+                if (currentGame.currentGuess.length > 0) {
+                    currentGame.currentGuess = currentGame.currentGuess.slice(0, -1);
+                    updateGameBoard();
+                }
+            } else if (key === 'ENTER') {
+                if (currentGame.currentGuess.length === 5) {
+                    checkGuess();
+                } else {
+                    showMessage('Слово должно быть из 5 букв!');
+                }
+            } else {
+                if (currentGame.currentGuess.length < 5) {
+                    currentGame.currentGuess += key;
+                    updateGameBoard();
+                }
+            }
+        }
+
+        // Обновление игрового поля
+        function updateGameBoard() {
+            for (let row = 0; row < currentGame.maxAttempts; row++) {
+                for (let col = 0; col < 5; col++) {
+                    const cell = document.getElementById(`cell-${row}-${col}`);
+                    cell.textContent = '';
+                    cell.className = 'cell';
+                    
+                    if (row === currentGame.attempts) {
+                        if (col < currentGame.currentGuess.length) {
+                            cell.textContent = currentGame.currentGuess[col];
+                            cell.classList.add('filled');
+                        }
+                    }
+                }
+            }
+        }
+
+        // Проверка предположения
+        function checkGuess() {
+            const guess = currentGame.currentGuess.toUpperCase();
+            
+            // Проверяем есть ли слово в базе
+            if (!WORDS.includes(guess)) {
+                showMessage('Такого слова нет в базе!');
+                return;
+            }
+
+            currentGame.attempts++;
+            
+            // Проверяем буквы
+            const result = checkLetters(guess);
+            updateBoardWithResult(guess, result);
+            
+            if (guess === currentGame.word) {
+                // Победа!
+                currentGame.guessed = true;
+                currentGame.gameOver = true;
+                showMessage(`🎉 Поздравляем! Вы угадали слово "${currentGame.word}" за ${currentGame.attempts} попыток!`);
+            } else if (currentGame.attempts >= currentGame.maxAttempts) {
+                // Поражение
+                currentGame.gameOver = true;
+                showMessage(`💔 Игра окончена! Загаданное слово: ${currentGame.word}`);
+            } else {
+                // Продолжаем игру
+                currentGame.currentGuess = '';
+                updateStats();
+            }
+        }
+
+        // Проверка букв
+        function checkLetters(guess) {
+            const result = Array(5).fill('absent');
+            const wordLetters = currentGame.word.split('');
+            const guessLetters = guess.split('');
+            
+            // Проверяем точные совпадения
+            for (let i = 0; i < 5; i++) {
+                if (guessLetters[i] === wordLetters[i]) {
+                    result[i] = 'correct';
+                    wordLetters[i] = null;
+                }
+            }
+            
+            // Проверяем присутствующие буквы
+            for (let i = 0; i < 5; i++) {
+                if (result[i] !== 'correct' && wordLetters.includes(guessLetters[i])) {
+                    result[i] = 'present';
+                    wordLetters[wordLetters.indexOf(guessLetters[i])] = null;
+                }
+            }
+            
+            return result;
+        }
+
+        // Обновление доски с результатом
+        function updateBoardWithResult(guess, result) {
+            for (let col = 0; col < 5; col++) {
+                const cell = document.getElementById(`cell-${currentGame.attempts-1}-${col}`);
+                cell.textContent = guess[col];
+                cell.classList.add(result[col]);
+                
+                // Обновляем клавиатуру
+                updateKeyboard(guess[col], result[col]);
+            }
+        }
+
+        // Обновление клавиатуры
+        function updateKeyboard(letter, status) {
+            const keys = document.querySelectorAll('.key');
+            keys.forEach(key => {
+                if (key.textContent === letter) {
+                    if (status === 'correct') {
+                        key.style.background = '#4cc9f0';
+                    } else if (status === 'present' && key.style.background !== '#4cc9f0') {
+                        key.style.background = '#f72585';
+                    } else if (status === 'absent' && !key.style.background) {
+                        key.style.background = '#7209b7';
+                    }
+                }
+            });
+        }
+
+        // Обновление статистики
+        function updateStats() {
+            document.getElementById('current-attempt').textContent = 
+                `${currentGame.attempts + 1}/${currentGame.maxAttempts}`;
+        }
+
+        // Показать сообщение
+        function showMessage(text) {
+            const messageElement = document.getElementById('game-message');
+            messageElement.textContent = text;
+            
+            // Вибрация в Telegram
+            if (tg.platform !== 'unknown') {
+                tg.HapticFeedback.impactOccurred('light');
+            }
+        }
+
+        // Новая игра
+        function newGame() {
+            currentGame = {
+                word: WORDS[Math.floor(Math.random() * WORDS.length)],
+                attempts: 0,
+                maxAttempts: 6,
+                currentGuess: '',
+                gameOver: false,
+                guessed: false
+            };
+            
+            console.log('New word:', currentGame.word);
+            
+            createGameBoard();
+            createKeyboard();
+            updateStats();
+            showMessage('Угадай слово из 5 букв!');
+        }
+
+        // Поделиться результатом
+        function shareResult() {
+            if (!currentGame.gameOver) {
+                showMessage('Сначала завершите игру!');
+                return;
+            }
+            
+            let shareText = `🎯 Wordle\n`;
+            
+            if (currentGame.guessed) {
+                shareText += `Угадал слово за ${currentGame.attempts}/6 попыток!\n`;
+            } else {
+                shareText += `Не угадал слово: ${currentGame.word}\n`;
+            }
+            
+            shareText += `\nПопробуй сыграть!`;
+            
+            // Копируем в буфер обмена
+            navigator.clipboard.writeText(shareText).then(() => {
+                showMessage('Результат скопирован! Отправь другу!');
+            });
+        }
+
+        // Обработка физической клавиатуры
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                handleKeyPress('ENTER');
+            } else if (event.key === 'Backspace') {
+                handleKeyPress('BACKSPACE');
+            } else if (event.key.length === 1 && /[а-яА-Яa-zA-Z]/.test(event.key)) {
+                handleKeyPress(event.key.toUpperCase());
+            }
+        });
+
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>
